@@ -1,0 +1,232 @@
+---
+title: "Reproducible Research: Peer Assessment 2"
+author: Jose Antonio R Neto (joseantonio@me.com)
+output: 
+  html_document:
+    keep_md: true
+---
+# Health/Economic Consequences in U.S. caused by Storms ans Weather Events
+
+GitHub: [GitHub NOAA Project ](https://github.com/joseantonio11/RepData_PeerAssessment2) 
+
+## 1 - Introduction
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This Data Science Project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+Look to link: [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf). At pag.51 of this document, there is an example, evolving Hurricane Andrew where the powerful winds resulted in 4 fatalities, 50 injuries, $13B in property damage and $ 750M in crop damage (Notation Example pag.51: FLZ018-021 >023 24 0325EST 4 50 13B 750M Hurricane/Typhoon 0900EST)
+
+# 2 - Synopsis
+This report address questions related to Weather Events and Storms in U.S. that are most damaging in terms of Fatalities, Injuries and damages to properties and crop.
+
+The two mainly questions to be answered are:
+
+1 - Which types of events are most harmful with respect to population health?
+
+2 - Which types of events have the greatest economic consequences?
+
+# 3 - Loading the Data
+
+## 3.1 - R libraries
+
+```{r, echo=TRUE}
+getwd()
+library(knitr)
+library(markdown)
+library(rmarkdown)
+library(plyr)
+library(stats)
+```
+
+## 3.2 - Loading NOAA data into R
+
+```{r, echo=TRUE}
+storm <- read.csv(file = "repdata-data-StormData.csv", header = TRUE, sep = ",")
+dim(storm)
+names(storm)
+str(storm)
+```
+
+
+## 3.3 - Wrangling the Data
+
+Defining variables that will be used:
+
+- EVTYPE: Event Type (Tornados, Flood, ....)
+
+- FATALITIES: Number of Fatalities
+
+- INJURIES: Number of Injuries
+
+- PROGDMG: Property Damage
+
+- PROPDMGEXP: Units for Property Damage (magnitudes - K,B,M)
+
+- CROPDMG: Crop Damage
+
+- CROPDMGEXP: Units for Crop Damage (magnitudes - K,BM,B)
+
+```{r, echo=TRUE}
+varsNedeed <- c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")
+storm <- storm[varsNedeed]
+dim(storm)
+names(storm)
+str(storm)
+```
+
+### 3.3.1 - Calculating Total for Property Damage 
+
+* Refactor of variable PROPDNGEXP
+
+```{r, echo=TRUE}
+unique(storm$PROPDMGEXP)
+storm$PROPDMGEXP <- mapvalues(storm$PROPDMGEXP, from = c("K", "M","", "B", "m", "+", "0", "5", "6", "?", "4", "2", "3", "h", "7", "H", "-", "1", "8"), to = c(10^3, 10^6, 1, 10^9, 10^6, 0,1,10^5, 10^6, 0, 10^4, 10^2, 10^3, 10^2, 10^7, 10^2, 0, 10, 10^8))
+storm$PROPDMGEXP <- as.numeric(as.character(storm$PROPDMGEXP))
+storm$PROPDMGTOTAL <- (storm$PROPDMG * storm$PROPDMGEXP)/1000000000
+```
+
+* Refactor of variable CROPDMGEXP variable
+
+```{r, echo=TRUE}
+unique(storm$CROPDMGEXP)
+storm$CROPDMGEXP <- mapvalues(storm$CROPDMGEXP, from = c("","M", "K", "m", "B", "?", "0", "k","2"), to = c(1,10^6, 10^3, 10^6, 10^9, 0, 1, 10^3, 10^2))
+storm$CROPDMGEXP <- as.numeric(as.character(storm$CROPDMGEXP))
+storm$CROPDMGTOTAL <- (storm$CROPDMG * storm$CROPDMGEXP)/1000000000
+```
+
+# 4 - Processing the Data:
+
+Lets answer the question about Which Types of Events are most Harmful for population HEALTH? The variables involved are FATALITIES and INJURIES.
+
+
+## 4.1 - Events are most harmful to population Health?
+
+The item 2.6 (page 9) of National Weather Service Storm Data documentation describes about Fatalities and Injuries. So, it is necessary to assess these Variables to define which of EVENTS (EVTYPE) are most harmful. Look to link: [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+
+### 4.1.1 - Total Number of Fatalities per Event
+
+```{r, echo= TRUE}
+sumFatalities <- aggregate(FATALITIES ~ EVTYPE, data = storm,  FUN="sum")
+dim(sumFatalities)  ## 985 observations
+```
+
+* Ordering Number of Fatalities and defining the top 10 Weather events
+
+```{r, echo=TRUE}
+fatalities10events <- sumFatalities[order(-sumFatalities$FATALITIES), ][1:10, ]
+dim(fatalities10events)
+fatalities10events
+```
+
+* BarPlot of the 10 Fatalities Events most harmful to population Health.
+
+```{r, echo = TRUE}
+par(mfrow = c(1,1), mar = c(12, 4, 3, 2), mgp = c(3, 1, 0), cex = 0.8)
+barplot(fatalities10events$FATALITIES, names.arg = fatalities10events$EVTYPE, las = 3, main = "10 Fatalities Highest Events", ylab = "Number of Fatalities")
+dev.copy(png, "fatalities-events.png", width = 480, height = 480)
+dev.off()
+```
+
+
+### 4.1.2 - Total Number of Injuries per Event
+
+Using the same reasoning of Fatalities, let's evaluate the Number of Injuries per type of Event (EVTYPE)
+
+```{r, echo= TRUE}
+sumInjuries <- aggregate(INJURIES ~ EVTYPE, data = storm,  FUN="sum")
+dim(sumInjuries)  ## 985 observations
+```
+
+* Ordering Number of INJURIES and defining the top 10 Weather events in this category
+
+```{r, echo=TRUE}
+injuries10events <- sumInjuries[order(-sumInjuries$INJURIES), ][1:10, ]
+dim(injuries10events)
+injuries10events
+```
+
+* BarPlot of the 10 INJURIES Events most harmful to population Health.
+
+```{r, echo = TRUE}
+par(mfrow = c(1,1), mar = c(12, 6, 3, 2), mgp = c(4, 1, 0), cex = 0.8)
+barplot(injuries10events$INJURIES, names.arg = injuries10events$EVTYPE, las = 3, main = "10 Injuries Highest Events", ylab = "Number of Injuries")
+dev.copy(png, "injuries-events.png", width = 480, height = 480)
+dev.off()
+```
+
+
+## 4.2 - Which type of Events have the greatest Economic consequences? 
+
+The item 2.7 (page 12 and the APPENDIX B) of National Weather Service Storm Data documentation describes about Damage. Two variables, PROPDMG (for Property Damage) and CROPDMG (for Crop Damage) are used to represent these losts. If you want, read more about theses damages, please connect with National Weather Service using the link [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+
+
+### 4.2.1 - Property Damage
+
+* Calculating Property Damage for type of Event
+
+```{r, echo= TRUE}
+sumPropertyDamage <- aggregate(PROPDMGTOTAL ~ EVTYPE, data = storm,  FUN="sum")
+dim(sumPropertyDamage)  ## 985 observations
+```
+
+* We have 985 observations, which is a great number of Events to present in a Plot. 
+* Lets stay with the 10 most Property Damage Events
+
+```{r, echo=TRUE}
+propdmg10Total <- sumPropertyDamage[order(-sumPropertyDamage$PROPDMGTOTAL), ][1:10, ]
+propdmg10Total
+```
+
+* BarPlot of the 10 Proprietary Damage Events most harmful to population economic.
+
+```{r, echo = TRUE}
+par(mfrow = c(1,1), mar = c(12, 6, 3, 2), mgp = c(3, 1, 0), cex = 0.8)
+barplot(propdmg10Total$PROPDMGTOTAL, names.arg = propdmg10Total$EVTYPE, las = 3, main = "10 Property Damages Highest Events", ylab = "Damage Property Values (in Billions)")
+dev.copy(png, "propdmg-total.png", width = 480, height = 480)
+dev.off()
+```
+
+### 4.2.2 - Crop Damage
+
+* Calculating Crop Damage for type of Event
+
+```{r, echo= TRUE}
+sumCropDamage <- aggregate(CROPDMGTOTAL ~ EVTYPE, data = storm,  FUN="sum")
+dim(sumCropDamage) ## 985 observations
+```
+
+* We have 985 observations, which is a great number of Events to present in a Plot. 
+* Lets stay with the 10 most Crop Damage Events
+
+```{r, echo=TRUE}
+cropdmg10Total <- sumCropDamage[order(-sumCropDamage$CROPDMGTOTAL), ][1:10, ]
+cropdmg10Total
+```
+
+* BarPlot of the 10 Crop Damage Events most harmful to population economic.
+
+```{r, echo = TRUE}
+par(mfrow = c(1,1), mar = c(10, 6, 3, 2), mgp = c(3, 1, 0), cex = 0.6)
+barplot(cropdmg10Total$CROPDMGTOTAL, names.arg = cropdmg10Total$EVTYPE, las = 2, main = "10 Crop Damages Highest Events", ylab = "Damage Crop Values (in Billions) ")
+dev.copy(png, "cropdmg-total.png", width = 480, height = 480)
+dev.off()
+```
+
+
+# 5 - Results and Conclusions
+
+### 5.1 - Answering Question 1
+As demonstrated by the Graphs, Tornados causes the greatest number of Fatalities and Injuries. 
+
+Specifically in FATALITIES, after Tornados, EXCESSIVE HEAT, FLASH FLOOD and HEAT are the next ones.
+
+Specifically in INJURIES, after tornados we have TSTM WIND, FLOOD and EXCESSIVE HEAT. 
+
+### 5.2 - Answering Question 2
+Floods are the Weather Event that cause most Property Damage, followed by Hurrucanes.
+
+Drought are the Weather Event that causes most Crop damages, follwed by Flood.
+
+### 5.3 - Conclusions
+Based on evidences demonstrated previously, tornados, floods and droughts have priorities to minize the impact in human and economic costs of Weather Events. Government and society have to be alert and prepared for each type of events. For safety, it's important to population to know what to do during these events.
+
